@@ -1,7 +1,7 @@
 # mountdmg
 Mount Developer Disk Image on-device. Requires root access.
 ```
-mountmdg -h
+mountdmg -h
 ``` 
 for more info.
 
