@@ -1,0 +1,10 @@
+Package: com.udevs.mountdmg
+Name: mountdmg
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Mount Developer Disk Image on-device
+Maintainer: udevs
+Author: udevs
+Section: System
+Tag: role::hacker
+Depiction: https://udevsharold.github.io/repo/depictions/?p=com.udevs.mountdmg
