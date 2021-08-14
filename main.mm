@@ -25,7 +25,7 @@ static xpc_object_t create_encoded_obj(CFStringRef img_path, CFStringRef sig_pat
     CFDictionarySetValue(encoded_dict, CFSTR("DiskImageType"), img_type);
     CFDictionarySetValue(encoded_dict, CFSTR("RequestType"), request_type);
     CFDictionarySetValue(encoded_dict, CFSTR("ImageSignature"),(CFDataRef)[NSData dataWithContentsOfFile:(__bridge NSString *)sig_path]);
-
+    
     if (mount_path){
         CFDictionarySetValue(encoded_dict, CFSTR("MountPath"), mount_path);
     }
@@ -65,7 +65,7 @@ static xpc_object_t send_obj(xpc_object_t message){
 }
 
 static void print_help(){
-    fprintf(stderr,
+    fprintf(stdout,
             "Usage: mountdmg [options] IMG_FILE [SIG_FILE]\n"
             "       If no SIG_FILE specified, will assume IMG_FILE.signature\n"
             "       options:\n"
@@ -92,12 +92,11 @@ int main(int argc, char *argv[], char *envp[]) {
         { 0, 0, 0, 0 }
     };
     
-    
     CFStringRef signature_path = NULL;
     CFStringRef request = CFSTR("Mount");
     CFStringRef type =  CFSTR("Developer");
     CFStringRef mount_path =  NULL;
-
+    
     int opt;
     while ((opt = getopt_long(argc, argv, "r:t:p:h", longopts, NULL)) != -1){
         switch (opt){
@@ -119,44 +118,49 @@ int main(int argc, char *argv[], char *envp[]) {
     
     argc -= optind;
     argv += optind;
-
+    
     if (argc < 1) {printf("ERROR: IMG_FILE not specified!\n"); return -1;}
-
-    if (access(strdup(argv[0]), F_OK ) != 0) {printf("ERROR: IMG_FILE not exist!\n"); return -1;}
+    
+    if (access(strdup(argv[0]), F_OK) != 0) {printf("ERROR: IMG_FILE not exist!\n"); return -1;}
     CFStringRef image_path = CFStringCreateWithCString(kCFAllocatorDefault, strdup(argv[0]), kCFStringEncodingMacRoman);
     
     if (argc >= 2){
-        if (access(strdup(argv[1]), F_OK ) != 0) {printf("ERROR: SIG_FILE not exist!\n"); return -1;}
+        if (access(strdup(argv[1]), F_OK) != 0) {printf("ERROR: SIG_FILE not exist!\n"); return -1;}
         signature_path = CFStringCreateWithCString(kCFAllocatorDefault, strdup(argv[1]), kCFStringEncodingMacRoman);
     }
     
     if (!signature_path){
         signature_path =  CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
-        if(access([(__bridge NSString *)signature_path UTF8String], F_OK ) != 0) {printf("ERROR: SIG_FILE not specified!\n"); return -1;}
+        if(access(CFStringGetCStringPtr(signature_path, kCFStringEncodingUTF8), F_OK) != 0) {printf("ERROR: SIG_FILE not specified!\n"); return -1;}
     }
     
+    if(access(CFStringGetCStringPtr(signature_path, kCFStringEncodingUTF8), R_OK) != 0) {printf("ERROR: SIG_FILE not readable, check permissions!\n"); return -1;}
+    
     xpc_object_t msg = create_encoded_obj(image_path, signature_path, type, request, mount_path);
+    
     if (msg){
         xpc_object_t reply = send_obj(msg);
-        
         if (xpc_get_type(reply) == XPC_TYPE_DICTIONARY){
-            size_t encodedDataLength;
-            const void *encodedData = xpc_dictionary_get_data(reply, "EncodedDictionary", &encodedDataLength);
-            if (encodedData){
-                CFDataRef data = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)encodedData, encodedDataLength);
-                CFDictionaryRef encodedDictionary = (const struct __CFDictionary *)CFPropertyListCreateWithData(kCFAllocatorDefault, data, 0, 0, nil);
-                CFStringRef status = (CFStringRef)CFDictionaryGetValue(encodedDictionary, CFSTR("Status"));
+            size_t encoded_data_l;
+            const void *encoded_data = xpc_dictionary_get_data(reply, "EncodedDictionary", &encoded_data_l);
+            if (encoded_data){
+                CFDataRef data = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)encoded_data, encoded_data_l);
+                CFDictionaryRef encoded_dict = (CFDictionaryRef)CFPropertyListCreateWithData(kCFAllocatorDefault, data, 0, 0, nil);
+                CFStringRef status = (CFStringRef)CFDictionaryGetValue(encoded_dict, CFSTR("Status"));
                 if (CFStringCompare(status, CFSTR("Success"), 0) == kCFCompareEqualTo){
                     fprintf(stdout, "%s\n", "Success");
                 }else{
-                    CFStringRef err = (CFStringRef)CFDictionaryGetValue(encodedDictionary, CFSTR("DetailedError"));
+                    CFStringRef err = (CFStringRef)CFDictionaryGetValue(encoded_dict, CFSTR("DetailedError"));
                     fprintf(stderr, "ERROR: %s\n", CFStringGetCStringPtr(err, kCFStringEncodingUTF8));
                 }
             }
+        }else{
+            fprintf(stderr, "ERROR: No reply received\n");
+            return 1;
         }
     }else{
         return 1;
     }
-
+    
     return 0;
 }
