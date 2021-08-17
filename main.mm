@@ -106,7 +106,6 @@ int main(int argc, char *argv[], char *envp[]) {
             case 't':
                 type = CFStringCreateWithCString(kCFAllocatorDefault, optarg, kCFStringEncodingMacRoman);
                 break;
-                break;
             case 'p':
                 mount_path = CFStringCreateWithCString(kCFAllocatorDefault, optarg, kCFStringEncodingMacRoman);
                 break;
