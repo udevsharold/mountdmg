@@ -1,6 +1,6 @@
 Package: com.udevs.mountdmg
 Name: mountdmg
-Version: 1.0.1
+Version: 1.0.2
 Architecture: iphoneos-arm
 Description: Mount Developer Disk Image on-device
 Maintainer: udevs
